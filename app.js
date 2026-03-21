@@ -821,8 +821,6 @@ function escapeHtml(str) {
 // ---- Radar Logic ----
 async function fetchRadarDeals() {
   try {
-    statusEl.innerHTML = '<span class="status-dot"></span> Sincronizado com Apify Cloud (Live)';
-        
     // Ponto de ligação com a Nuvem (Fase 5 API Sync)
     const vaultKey = atob("YXBpZnlfYXBpX2o3OXZzWWlwMU4zVnlUUWVKTkY2Mm1FdWlzckNPNjFtamNGMg==");
     const response = await fetch(`https://api.apify.com/v2/acts/fRCmGC2SFtITA3Jmf/runs/last/dataset/items?token=${vaultKey}`, {
