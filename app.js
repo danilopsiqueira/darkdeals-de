@@ -823,13 +823,7 @@ async function fetchRadarDeals() {
   try {
     // Ponto de ligação com a Nuvem (Fase 5 API Sync)
     const vaultKey = atob("YXBpZnlfYXBpX2o3OXZzWWlwMU4zVnlUUWVKTkY2Mm1FdWlzckNPNjFtamNGMg==");
-    const response = await fetch(`https://api.apify.com/v2/acts/fRCmGC2SFtITA3Jmf/runs/last/dataset/items?token=${vaultKey}`, {
-        headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        }
-    });
+    const response = await fetch(`https://api.apify.com/v2/acts/fRCmGC2SFtITA3Jmf/runs/last/dataset/items?token=${vaultKey}&t=${Date.now()}`);
     
     if (!response.ok) throw new Error('Falha API Nuvem');
     const deals = await response.json();
