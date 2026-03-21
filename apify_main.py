@@ -19,19 +19,31 @@ def ask_gemini_expert(title, price, km, year, context_text=""):
         return True, "IA Desligada (Chave Oculta)"
     try:
         client = genai.Client(api_key=api_key)
-        prompt = f"""És um mecânico mestre e importador especialista em "Fix & Flip" entre a Alemanha e Portugal.
-Encontrei este furgão comercial: '{title}', Ano de {year}, {km}km, preço Base de {price}€.
-Texto do Anúncio: {context_text[:600]}
+        prompt = f"""És um mecânico mestre, importador e contabilista fiscal especialista em "Fix & Flip" de furgões comerciais entre a Alemanha e Portugal.
+O comprador é uma EMPRESA DE CONSTRUÇÃO CIVIL portuguesa (categoria N1 veículos comerciais).
 
-O teu trabalho em 4 passos OBRIGATÓRIOS:
-1. AVALIAR DANOS: Procura sinais de avarias no texto. Amolgadelas fáceis ou riscos? EXCELENTE. Danos de Chassis/Motor destruído? REJEITA.
-2. CUSTO CHAVE-NA-MÃO PT: Calcula o valor total: {price}€ + 800€ (Transporte p/ PT) + 300€ (ISV Comercial) + 500€ (Reparação).
-3. BENCHMARK STANDVIRTUAL / OLX: Atua como analista do Standvirtual e OLX Portugal. Qual é o valor real de mercado (Venda ao Público) de um furgão comercial de {year} com {km}km em PT? Subtrai o Custo Chave-na-Mão a este Valor de Venda para apurar o LUCRO LIMPO.
-4. DECISÃO FINAL: Se o Lucro Limpo for > 2000€, aprova. Senão, rejeita.
-Sê extremamente conciso.
+Veículo encontrado: '{title}', Ano {year}, {km}km, preço {price}€.
+Texto do Anúncio: {context_text[:800]}
 
-Exemplo OBRIGATÓRIO de resposta exata:
-SIM - StandVirtual: ~14.500€. Custo Final c/ legalização: ~X€. Lucro Estimado: ~Y€. Danos: Ligeiros."""
+TRABALHO OBRIGATÓRIO EM 6 PASSOS:
+
+0. VALIDAÇÃO DE TIPO: Este veículo é REALMENTE um furgão comercial, carrinha de trabalho, Transporter ou Kastenwagen (ex: Transit, Sprinter, Transporter, Vito, Crafter, Ducato, Boxer, Jumper, Daily, Master, Caddy)? Se NÃO for um veículo comercial/de trabalho (ex: se for um carro de passeio, SUV, sedan, hatchback), responde "NÃO - Veículo não comercial" e para.
+
+1. AVALIAR DANOS: Procura sinais de avarias no texto. Amolgadelas fáceis ou riscos? EXCELENTE. Danos Chassis/Motor destruído? REJEITA.
+
+2. CÁLCULO ISV PORTUGAL (Empresa Construção Civil):
+   - ISV base para veículo comercial N1 de {year} com motor diesel: estima o valor.
+   - BENEFÍCIO FISCAL: Veículos N1 comerciais para empresa de construção têm redução ISV até 55%. Calcula o ISV COM benefício.
+   - IVA: Empresa recupera 100% do IVA na compra (dedução total).
+
+3. CUSTO CHAVE-NA-MÃO PT: {price}€ + 800€ (Transporte DE→PT) + ISV c/ benefício (passo 2) + 500€ (Reparação estimada).
+
+4. BENCHMARK STANDVIRTUAL / OLX: Preço real de mercado em Portugal para este furgão comercial de {year} com {km}km.
+
+5. DECISÃO: Lucro = Preço PT - Custo Total. Se Lucro > 2000€, aprova. Senão, rejeita.
+
+Resposta OBRIGATÓRIA neste formato exato:
+SIM - StandVirtual: ~14.500€. Custo Final c/ legalização: ~X€. Lucro Estimado: ~Y€. Danos: Ligeiros. ISV c/ benefício construção: ~Z€."""
         response = client.models.generate_content(
             model='gemini-2.0-flash',
             contents=prompt,
