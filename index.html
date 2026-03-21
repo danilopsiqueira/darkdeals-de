@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="DarkDeals DE — Encontre oportunidades únicas de carrinhas comerciais na Alemanha. Leasing returns, leilões, ex-rental, trade-ins.">
+  <title>DarkDeals DE — Comparador de Carrinhas Comerciais 🇩🇪</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕵️</text></svg>">
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ====== Header ====== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">🕵️</div>
+        <span class="logo-text">DarkDeals DE</span>
+        <span class="logo-badge">🇩🇪 Germany</span>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" data-tab="sources">🔍 Fontes</button>
+        <button class="nav-btn" data-tab="radar" style="color:var(--accent-red)">📡 Radar <span class="count" id="nav-radar-count" style="display:none;background:var(--accent-red)">0</span></button>
+        <button class="nav-btn" data-tab="tracker">📋 Tracker <span class="count" id="nav-deals-count" style="display:none">0</span></button>
+        <button class="nav-btn" data-tab="analysis">📊 Análise</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ====== Main ====== -->
+  <main class="main">
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label for="filter-year">Ano mínimo</label>
+        <input type="number" id="filter-year" value="2020" min="2015" max="2026">
+      </div>
+      <div class="filter-group">
+        <label for="filter-km">KM máximos</label>
+        <input type="number" id="filter-km" value="150000" min="0" step="10000">
+      </div>
+      <div class="filter-group">
+        <label for="filter-fuel">Combustível</label>
+        <select id="filter-fuel">
+          <option value="all">Todos</option>
+          <option value="diesel">⛽ Diesel</option>
+          <option value="electric">⚡ Elétrico</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filter-type">Tipo veículo</label>
+        <select id="filter-type">
+          <option value="transporter">🚐 Transporter / Kastenwagen</option>
+        </select>
+      </div>
+      <button class="btn-apply" id="btn-apply-filters">🔄 Atualizar Links</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-icon green">🌐</div>
+        <div class="stat-info">
+          <h3 id="stat-platforms">16</h3>
+          <p>Plataformas</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon gold">🕵️</div>
+        <div class="stat-info">
+          <h3 id="stat-dark">10</h3>
+          <p>Fontes "Dark"</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div class="stat-info">
+          <h3 id="stat-deals">0</h3>
+          <p>Deals Guardados</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">⭐</div>
+        <div class="stat-info">
+          <h3 id="stat-score">—</h3>
+          <p>Score Médio</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB: Sources ===== -->
+    <div class="tab-content active" id="tab-sources">
+      <div id="platforms-container"></div>
+    </div>
+
+    <!-- ===== TAB: Radar (Live Tracker) ===== -->
+    <div class="tab-content" id="tab-radar">
+      <div class="deals-table-wrapper" style="margin-top:1rem; border-color: rgba(239, 68, 68, 0.3)">
+        <div class="deals-table-header">
+          <h3 style="color:var(--accent-red)">📡 Radar Ao Vivo</h3>
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+             <span id="radar-status" style="font-size:0.8rem;color:var(--accent-green);display:flex;align-items:center;gap:4px">
+               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse-gold 2s infinite"></span> Analisando mercado...
+             </span>
+             <button class="btn btn-secondary btn-sm" onclick="fetchRadarDeals()">🔄 Atualizar</button>
+          </div>
+        </div>
+        <div style="padding:1rem">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem">
+            O **monitor inteligente Python** está a correr em plano de fundo no teu PC e fará scan contínuo 
+            para detetar novos negócios com "Score > 40". Estes aparecerão aqui automaticamente.
+          </p>
+          <div style="overflow-x:auto">
+            <table class="deals-table">
+              <thead>
+                <tr>
+                  <th>Veículo</th>
+                  <th>Preço</th>
+                  <th>KM</th>
+                  <th>Ano</th>
+                  <th>Score</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="radar-tbody">
+                <tr><td colspan="6" class="empty-state">Monitorizando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB: Deal Tracker ===== -->
+    <div class="tab-content" id="tab-tracker">
+      <div class="tracker-section">
+        <!-- Add Deal Form -->
+        <form class="add-deal-form" id="form-add-deal">
+          <h3>➕ Adicionar Deal</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="deal-vehicle">Veículo *</label>
+              <input type="text" id="deal-vehicle" placeholder="Ex: VW Transporter T6.1" required>
+            </div>
+            <div class="form-group">
+              <label for="deal-price">Preço (€) *</label>
+              <input type="number" id="deal-price" placeholder="Ex: 22500" required min="0">
+            </div>
+            <div class="form-group">
+              <label for="deal-km">Quilómetros *</label>
+              <input type="number" id="deal-km" placeholder="Ex: 85000" required min="0">
+            </div>
+            <div class="form-group">
+              <label for="deal-year">Ano *</label>
+              <input type="number" id="deal-year" placeholder="Ex: 2021" required min="2015" max="2026">
+            </div>
+            <div class="form-group">
+              <label for="deal-fuel">Combustível</label>
+              <select id="deal-fuel">
+                <option value="diesel">⛽ Diesel</option>
+                <option value="electric">⚡ Elétrico</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="deal-source">Fonte</label>
+              <select id="deal-source">
+                <option value="marketplace">🔍 Marketplace</option>
+                <option value="leasing">🏷️ Leasing Return</option>
+                <option value="rental">🚐 Ex-Rental</option>
+                <option value="auction">🔨 Leilão</option>
+                <option value="certified">✅ Certificado</option>
+                <option value="trade-in">🔄 Trade-In</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label for="deal-link">Link do anúncio</label>
+              <input type="url" id="deal-link" placeholder="https://...">
+            </div>
+            <div class="form-group full-width">
+              <label for="deal-notes">Notas</label>
+              <textarea id="deal-notes" rows="2" placeholder="Ex: Full service history, pneus novos, sem acidentes..."></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">➕ Adicionar ao Tracker</button>
+          </div>
+        </form>
+
+        <!-- Deals Table -->
+        <div class="deals-table-wrapper">
+          <div class="deals-table-header">
+            <h3>📋 Deals Guardados</h3>
+            <div style="display:flex;gap:0.5rem">
+              <button class="btn btn-secondary btn-sm" id="btn-export-csv">📥 Exportar CSV</button>
+              <button class="btn btn-danger btn-sm" id="btn-clear-all">🗑️ Limpar Tudo</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="deals-table">
+              <thead>
+                <tr>
+                  <th>Veículo</th>
+                  <th>Preço</th>
+                  <th>KM</th>
+                  <th>Ano</th>
+                  <th>Comb.</th>
+                  <th>Fonte</th>
+                  <th>Score</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="deals-tbody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB: Analysis ===== -->
+    <div class="tab-content" id="tab-analysis">
+      <div id="analysis-content"></div>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
