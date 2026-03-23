@@ -29,21 +29,26 @@ TRABALHO OBRIGATÓRIO EM 6 PASSOS:
 
 0. VALIDAÇÃO DE TIPO: Este veículo é REALMENTE um furgão comercial, carrinha de trabalho, Transporter ou Kastenwagen (ex: Transit, Sprinter, Transporter, Vito, Crafter, Ducato, Boxer, Jumper, Daily, Master, Caddy)? Se NÃO for um veículo comercial/de trabalho (ex: se for um carro de passeio, SUV, sedan, hatchback), responde "NÃO - Veículo não comercial" e para.
 
-1. AVALIAR DANOS: Procura sinais de avarias no texto. Amolgadelas fáceis ou riscos? EXCELENTE. Danos Chassis/Motor destruído? REJEITA.
+1. AVALIAR DANOS E CUSTO DE REPARAÇÃO EM PORTUGAL: Lê o texto à procura de sinais de danos, estado técnico ou menções a reparações.
+   - Sem danos indicados ou apenas revisão normal: estima 0€ a 300€.
+   - Danos ligeiros de chapa/riscos/amolgadelas: estima entre 300€ e 800€ para reparação de bate-chapa em PT.
+   - Avarias mecânicas (motor trabalha mas deita fumo, caixa faz barulho, embraiagem a patinar): estima o custo de reparar essa peça específica numa oficina local em Portugal (ex: entre 800€ a 2500€).
+   - "Motorschaden" grave não reparável ou viatura muito batida ("Unfallfahrzeug" grave) -> REJEITA (responde apenas "NÃO").
+   Guarda o valor exato no teu cálculo.
 
 2. CÁLCULO ISV PORTUGAL (Empresa Construção Civil):
    - ISV base para veículo comercial N1 de {year} com motor diesel: estima o valor.
    - BENEFÍCIO FISCAL: Veículos N1 comerciais para empresa de construção têm redução ISV até 55%. Calcula o ISV COM benefício.
    - IVA: Empresa recupera 100% do IVA na compra (dedução total).
 
-3. CUSTO CHAVE-NA-MÃO PT: {price}€ + 800€ (Transporte DE→PT) + ISV c/ benefício (passo 2) + 500€ (Reparação estimada).
+3. CUSTO CHAVE-NA-MÃO PT: {price}€ + 800€ (Transporte DE→PT) + ISV c/ benefício (passo 2) + Custo de Reparação Estimado (passo 1).
 
 4. BENCHMARK STANDVIRTUAL / OLX: Preço real de mercado em Portugal para este furgão comercial de {year} com {km}km.
 
 5. DECISÃO: Lucro = Preço PT - Custo Total. Se Lucro > 2000€, aprova. Senão, rejeita.
 
-Resposta OBRIGATÓRIA neste formato exato:
-SIM - StandVirtual: ~14.500€. Custo Final c/ legalização: ~X€. Lucro Estimado: ~Y€. Danos: Ligeiros. ISV c/ benefício construção: ~Z€."""
+Resposta OBRIGATÓRIA DE SUCESSO neste formato exato (tudo na mesma linha, não uses quebras de linha):
+SIM - StandVirtual: ~14.500€. Custo Final c/ legalização: ~X€. Lucro Estimado: ~Y€. Danos: [Descreve o dano: ex. "Risco lateral"] (Reparação em PT: ~500€). ISV c/ benefício construção: ~Z€."""
         response = client.models.generate_content(
             model='gemini-2.0-flash',
             contents=prompt,
@@ -132,8 +137,8 @@ async def search_autoscout(page, cfg):
                     if year < cfg['min_year'] or km > cfg['max_km']: continue
                     
                     link = ""
-                    a_tag = article.find('a')
-                    if a_tag and a_tag.get('href'): link = "https://www.autoscout24.de" + a_tag['href']
+                    a_tag = article.find('a', href=True)
+                    if a_tag: link = "https://www.autoscout24.de" + a_tag['href']
                     uid = "as24_" + str(price) + "_" + str(km) + "_" + str(year)
                     score = calculate_score(price, km, year, "marketplace")
                     if score >= 35:
@@ -264,8 +269,8 @@ async def search_kleinanzeigen(page, cfg):
                     km = 100000; year = 2021
                     uid = "klein_" + str(price) + "_" + title[:10].replace(' ','')
                     link = ""
-                    a_tag = title_elem.find('a')
-                    if a_tag and a_tag.get('href'): link = "https://www.kleinanzeigen.de" + a_tag['href']
+                    a_tag = article.find('a', href=True)
+                    if a_tag: link = "https://www.kleinanzeigen.de" + a_tag['href']
                     score = calculate_score(price, km, year, "private")
                     if score >= 35:
                         is_good, ai_verdict = ask_gemini_expert(title, price, km, year, article_text)
