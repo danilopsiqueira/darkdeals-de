@@ -1,5 +1,6 @@
 import asyncio
 import os
+import urllib.parse
 from datetime import datetime
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
@@ -92,10 +93,16 @@ def calculate_score(price, km, year, source="marketplace"):
 # ==================================================================
 async def search_autoscout(page, cfg):
     Actor.log.info(f"🔎 FONTE 1: AutoScout24 — Max {cfg['max_price']}€ | Min {cfg['min_year']} | Max {cfg['max_km']}km...")
-    urls = [
+    base_urls = [
         f"https://www.autoscout24.de/lst?atype=C&body=7&cy=D&fregfrom={cfg['min_year']}&kmto={cfg['max_km']}&priceto={cfg['max_price']}&sort=price&desc=0",
         f"https://www.autoscout24.de/lst?atype=C&body=12&cy=D&fregfrom={cfg['min_year']}&kmto={cfg['max_km']}&priceto={cfg['max_price']}&sort=price&desc=0",
     ]
+    urls = []
+    if cfg['keywords']:
+        for kw in cfg['keywords']:
+            for b in base_urls: urls.append(b + f"&text={urllib.parse.quote(kw)}")
+    else:
+        urls = base_urls
     all_deals = []
     for url in urls:
         try:
@@ -165,10 +172,16 @@ async def search_autoscout(page, cfg):
 # ==================================================================
 async def search_mobile_de(page, cfg):
     Actor.log.info(f"🔎 FONTE 2: mobile.de — Max {cfg['max_price']}€ | Min {cfg['min_year']} | Max {cfg['max_km']}km...")
-    urls = [
+    base_urls = [
         f"https://suchen.mobile.de/fahrzeuge/search.html?dam=0&isSearchRequest=true&ms=&od=down&ref=quickSearch&s=Car&sb=p&vc=Van&fr={cfg['min_year']}%3A&ml=%3A{cfg['max_km']}&p=%3A{cfg['max_price']}",
         f"https://suchen.mobile.de/fahrzeuge/search.html?dam=0&isSearchRequest=true&ms=&od=down&ref=quickSearch&s=Car&sb=p&vc=TransporterVan&fr={cfg['min_year']}%3A&ml=%3A{cfg['max_km']}&p=%3A{cfg['max_price']}",
     ]
+    urls = []
+    if cfg['keywords']:
+        for kw in cfg['keywords']:
+            for b in base_urls: urls.append(b + f"&q={urllib.parse.quote(kw)}")
+    else:
+        urls = base_urls
     all_deals = []
     for url in urls:
         try:
@@ -239,10 +252,14 @@ async def search_mobile_de(page, cfg):
 # ==================================================================
 async def search_kleinanzeigen(page, cfg):
     Actor.log.info(f"🔎 FONTE 3: Kleinanzeigen.de — Max {cfg['max_price']}€...")
-    urls = [
-        f"https://www.kleinanzeigen.de/s-autos/kastenwagen/anzeige:angebote/preis::{cfg['max_price']}/c216+autos.ez_i:{cfg['min_year']},",
-        f"https://www.kleinanzeigen.de/s-transporter/anzeige:angebote/preis::{cfg['max_price']}/c276+autos.ez_i:{cfg['min_year']},",
-    ]
+    urls = []
+    if cfg['keywords']:
+        for kw in cfg['keywords']:
+            urls.append(f"https://www.kleinanzeigen.de/s-autos/{urllib.parse.quote(kw)}/preis::{cfg['max_price']}/c216+autos.ez_i:{cfg['min_year']},")
+            urls.append(f"https://www.kleinanzeigen.de/s-transporter/{urllib.parse.quote(kw)}/preis::{cfg['max_price']}/c276+autos.ez_i:{cfg['min_year']},")
+    else:
+        urls.append(f"https://www.kleinanzeigen.de/s-autos/kastenwagen/anzeige:angebote/preis::{cfg['max_price']}/c216+autos.ez_i:{cfg['min_year']},")
+        urls.append(f"https://www.kleinanzeigen.de/s-transporter/anzeige:angebote/preis::{cfg['max_price']}/c276+autos.ez_i:{cfg['min_year']},")
     all_deals = []
     for url in urls:
         try:
