@@ -23,33 +23,40 @@ def ask_gemini_expert(title, price, km, year, context_text=""):
         prompt = f"""És um mecânico mestre, importador e contabilista fiscal especialista em "Fix & Flip" de furgões comerciais entre a Alemanha e Portugal.
 O comprador é uma EMPRESA DE CONSTRUÇÃO CIVIL portuguesa (categoria N1 veículos comerciais).
 
-Veículo encontrado: '{title}', Ano {year}, {km}km, preço {price}€.
-Texto do Anúncio: {context_text[:800]}
+Veículo encontrado: '{title}', Ano declarado no filtro: {year}, {km}km, preço {price}€.
+TEXTO COMPLETO DO ANÚNCIO (lê com muita atenção antes de avançar):
+{context_text[:1500]}
 
-TRABALHO OBRIGATÓRIO EM 6 PASSOS:
+TRABALHO OBRIGATÓRIO EM 7 PASSOS:
 
 0. VALIDAÇÃO DE TIPO: Este veículo é REALMENTE um furgão comercial, carrinha de trabalho, Transporter ou Kastenwagen (ex: Transit, Sprinter, Transporter, Vito, Crafter, Ducato, Boxer, Jumper, Daily, Master, Caddy)? Se NÃO for um veículo comercial/de trabalho (ex: se for um carro de passeio, SUV, sedan, hatchback), responde "NÃO - Veículo não comercial" e para.
 
-1. AVALIAR DANOS E CUSTO DE REPARAÇÃO EM PORTUGAL: Lê o texto à procura de sinais de danos, estado técnico ou menções a reparações.
+1. AUDITORIA ANTI-FRAUDE DO ANÚNCIO: Lê TODO o texto do anúncio em alemão com atenção. Muitos vendedores colocam o filtro de ano errado para aparecerem nas pesquisas.
+   - Procura no texto palavras como "Baujahr", "EZ", "Erstzulassung", ou qualquer menção ao ano real do veículo.
+   - Se o texto mencionar um ano DIFERENTE do declarado no filtro ({year}), usa o ANO REAL encontrado no texto. Por exemplo, se o filtro diz 2020 mas o texto diz "Baujahr 2009" ou "EZ 01/2012", o carro é na verdade de 2009 ou 2012.
+   - Se o ano real for inferior a {year} (o nosso mínimo), responde "NÃO - Ano real é [ano encontrado], filtro fraudulento" e para.
+   - Também verifica se a quilometragem ou o preço referidos no texto divergem muito dos valores do filtro. Sinaliza qualquer discrepância.
+
+2. AVALIAR DANOS E CUSTO DE REPARAÇÃO EM PORTUGAL: Lê o texto à procura de sinais de danos, estado técnico ou menções a reparações.
    - Sem danos indicados ou apenas revisão normal: estima 0€ a 300€.
    - Danos ligeiros de chapa/riscos/amolgadelas: estima entre 300€ e 800€ para reparação de bate-chapa em PT.
    - Avarias mecânicas (motor trabalha mas deita fumo, caixa faz barulho, embraiagem a patinar): estima o custo de reparar essa peça específica numa oficina local em Portugal (ex: entre 800€ a 2500€).
    - "Motorschaden" grave não reparável ou viatura muito batida ("Unfallfahrzeug" grave) -> REJEITA (responde apenas "NÃO").
    Guarda o valor exato no teu cálculo.
 
-2. CÁLCULO ISV PORTUGAL (Empresa Construção Civil):
+3. CÁLCULO ISV PORTUGAL (Empresa Construção Civil):
    - ISV base para veículo comercial N1 de {year} com motor diesel: estima o valor.
    - BENEFÍCIO FISCAL: Veículos N1 comerciais para empresa de construção têm redução ISV até 55%. Calcula o ISV COM benefício.
    - IVA: Empresa recupera 100% do IVA na compra (dedução total).
 
-3. CUSTO CHAVE-NA-MÃO PT: {price}€ + 800€ (Transporte DE→PT) + ISV c/ benefício (passo 2) + Custo de Reparação Estimado (passo 1).
+4. CUSTO CHAVE-NA-MÃO PT: {price}€ + 800€ (Transporte DE→PT) + ISV c/ benefício (passo 3) + Custo de Reparação Estimado (passo 2).
 
-4. BENCHMARK STANDVIRTUAL / OLX: Preço real de mercado em Portugal para este furgão comercial de {year} com {km}km.
+5. BENCHMARK STANDVIRTUAL / OLX: Preço real de mercado em Portugal para este furgão comercial do ANO REAL com {km}km.
 
-5. DECISÃO: Lucro = Preço PT - Custo Total. Se Lucro > 2000€, aprova. Senão, rejeita.
+6. DECISÃO: Lucro = Preço PT - Custo Total. Se Lucro > 2000€, aprova. Senão, rejeita.
 
 Resposta OBRIGATÓRIA DE SUCESSO neste formato exato (tudo na mesma linha, não uses quebras de linha):
-SIM - StandVirtual: ~14.500€. Custo Final c/ legalização: ~X€. Lucro Estimado: ~Y€. Danos: [Descreve o dano: ex. "Risco lateral"] (Reparação em PT: ~500€). ISV c/ benefício construção: ~Z€."""
+SIM - Ano Real: {year}. StandVirtual: ~14.500€. Custo Final c/ legalização: ~X€. Lucro Estimado: ~Y€. Danos: [Descreve o dano: ex. "Risco lateral"] (Reparação em PT: ~500€). ISV c/ benefício construção: ~Z€."""
         response = client.models.generate_content(
             model='gemini-2.0-flash',
             contents=prompt,
