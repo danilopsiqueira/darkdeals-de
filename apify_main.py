@@ -471,65 +471,57 @@ async def main():
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
             )
             page = await context.new_page()
-            deals_found = []
-            start_time = time.time()
-            MAX_RUNTIME = 480  # 8 min safety limit
+            total_pushed = 0
+            seen_global = set()
+
+            async def push_unique(deals, source_name):
+                nonlocal total_pushed
+                unique = []
+                for d in deals:
+                    if d['id'] not in seen_global:
+                        seen_global.add(d['id'])
+                        unique.append(d)
+                if unique:
+                    await Actor.push_data(unique)
+                    total_pushed += len(unique)
+                    Actor.log.info(f"📤 {source_name}: {len(unique)} novos enviados (Total: {total_pushed})")
 
             # FONTE 1: AutoScout24
             try:
-                deals_found.extend(await search_autoscout(page, cfg))
+                results = await search_autoscout(page, cfg)
+                await push_unique(results, "AutoScout24")
             except Exception as e:
                 Actor.log.warning(f"AutoScout24 falhou: {str(e)[:60]}")
 
-            if time.time() - start_time > MAX_RUNTIME:
-                Actor.log.warning("⏱️ Limite de tempo atingido após AutoScout24. A salvar resultados parciais.")
-            else:
+            # FONTE 2: mobile.de
+            try:
+                results = await search_mobile_de(page, cfg)
+                await push_unique(results, "mobile.de")
+            except Exception as e:
+                Actor.log.warning(f"mobile.de falhou: {str(e)[:60]}")
 
-                # FONTE 2: mobile.de
-                try:
-                    deals_found.extend(await search_mobile_de(page, cfg))
-                except Exception as e:
-                    Actor.log.warning(f"mobile.de falhou: {str(e)[:60]}")
+            # FONTE 3: Kleinanzeigen
+            try:
+                results = await search_kleinanzeigen(page, cfg)
+                await push_unique(results, "Kleinanzeigen")
+            except Exception as e:
+                Actor.log.warning(f"Kleinanzeigen falhou: {str(e)[:60]}")
 
-                if time.time() - start_time > MAX_RUNTIME:
-                    Actor.log.warning("⏱️ Limite de tempo atingido após mobile.de. A salvar resultados parciais.")
-                else:
-                    # FONTE 3: Kleinanzeigen
-                    try:
-                        deals_found.extend(await search_kleinanzeigen(page, cfg))
-                    except Exception as e:
-                        Actor.log.warning(f"Kleinanzeigen falhou: {str(e)[:60]}")
+            # FONTE 4: Auto1 B2B
+            try:
+                auto1 = await search_auto1_b2b(page, cfg)
+                if auto1: await push_unique(auto1, "Auto1 B2B")
+            except Exception as e:
+                Actor.log.warning(f"Auto1 falhou: {str(e)[:60]}")
 
-            # FONTE 4 & 5 only if time allows
-            if time.time() - start_time < MAX_RUNTIME:
-                # FONTE 4: Auto1 B2B
-                try:
-                    auto1 = await search_auto1_b2b(page, cfg)
-                    if auto1: deals_found.extend(auto1)
-                except Exception as e:
-                    Actor.log.warning(f"Auto1 falhou: {str(e)[:60]}")
+            # FONTE 5: OpenLane B2B
+            try:
+                ol = await search_openlane_b2b(page, cfg)
+                if ol: await push_unique(ol, "OpenLane B2B")
+            except Exception as e:
+                Actor.log.warning(f"OpenLane falhou: {str(e)[:60]}")
 
-                # FONTE 5: OpenLane B2B
-                try:
-                    ol = await search_openlane_b2b(page, cfg)
-                    if ol: deals_found.extend(ol)
-                except Exception as e:
-                    Actor.log.warning(f"OpenLane falhou: {str(e)[:60]}")
-            # Deduplicação global (remove duplicados entre fontes)
-            seen_global = set()
-            unique_deals = []
-            for d in deals_found:
-                if d['id'] not in seen_global:
-                    seen_global.add(d['id'])
-                    unique_deals.append(d)
-            deals_found = unique_deals
-
-            # Resultado final
-            if deals_found:
-                Actor.log.info(f"🏆 IA APROVOU {len(deals_found)} furgões ÚNICOS com os teus parâmetros!")
-                await Actor.push_data(deals_found)
-            else:
-                Actor.log.info("⚠️ Nenhum furgão aprovado com estes filtros exatos.")
+            Actor.log.info(f"🏆 IA APROVOU {total_pushed} furgões ÚNICOS com os teus parâmetros!")
             await browser.close()
             Actor.log.info("✅ DarkDeals DE v4.0 — Ciclo Concluído.")
 
