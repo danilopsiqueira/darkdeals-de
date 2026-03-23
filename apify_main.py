@@ -452,7 +452,7 @@ async def main():
         # Puxar DADOS DINÂMICOS do Apify (Configurados na consola pelo utilizador)
         input_data = await Actor.get_input() or {}
         
-        kw_str = input_data.get("keywords", "transit, sprinter, transporter, vito, crafter, ducato, boxer, jumper, daily, master, movano, caddy, berlingo, partner, kangoo, combo, citan, kastenwagen")
+        kw_str = input_data.get("keywords", "transit, sprinter, crafter, ducato, boxer, transporter")
         cfg = {
             "max_price": int(input_data.get("maxPrice", 15000)),
             "min_year": int(input_data.get("minYear", 2020)),
