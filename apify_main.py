@@ -24,8 +24,22 @@ def ask_gemini_expert(title, price, km, year, context_text=""):
 O comprador é uma EMPRESA DE CONSTRUÇÃO CIVIL portuguesa (categoria N1 veículos comerciais).
 
 Veículo encontrado: '{title}', Ano declarado no filtro: {year}, {km}km, preço {price}€.
+
+INSTRUÇÕES DE LEITURA: Lê TODO o texto do anúncio abaixo COM MUITA ATENÇÃO. Os anúncios alemães usam muitas abreviações e termos técnicos. Presta atenção a:
+- "Baujahr" / "EZ" / "Erstzulassung" = ano real do veículo
+- "TÜV" = inspeção técnica (se expirado, é um custo extra de ~200-500€)
+- "Motorschaden" / "Getriebeschaden" = avaria grave de motor/caixa
+- "Bastlerfahrzeug" / "für Bastler" = carro para mecânicos, tem problemas sérios
+- "Export" / "Exportfahrzeug" = exportação, geralmente tem problemas escondidos
+- "Unfallfahrzeug" / "Unfallwagen" = carro acidentado
+- "Rost" / "Durchrostung" = ferrugem/corrosão
+- "ohne TÜV" / "TÜV abgelaufen" = sem inspeção válida
+- "Ersatzteilspender" = só serve para peças, REJEITA imediatamente
+- "MwSt. ausweisbar" = IVA dedutível (bom para empresa)
+- "Netto" = preço sem IVA (atenção, preço final pode ser maior)
+
 TEXTO COMPLETO DO ANÚNCIO (lê com muita atenção antes de avançar):
-{context_text[:1500]}
+{context_text[:2500]}
 
 TRABALHO OBRIGATÓRIO EM 7 PASSOS:
 
@@ -111,6 +125,7 @@ async def search_autoscout(page, cfg):
     else:
         urls = base_urls
     all_deals = []
+    seen_ids = set()
     for url in urls:
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -157,7 +172,9 @@ async def search_autoscout(page, cfg):
                             break
                     if not link and article.get('id'):
                         link = "https://www.autoscout24.de/angebote/-" + article['id']
-                    uid = "as24_" + str(price) + "_" + str(km) + "_" + str(year)
+                    uid = "as24_" + (article.get('id') or f"{price}_{km}_{year}_{title[:20]}")
+                    if uid in seen_ids: continue
+                    seen_ids.add(uid)
                     score = calculate_score(price, km, year, "marketplace")
                     if score >= 35:
                         is_good, ai_verdict = ask_gemini_expert(title, price, km, year, article_text)
@@ -481,9 +498,18 @@ async def main():
             except Exception as e:
                 Actor.log.warning(f"OpenLane falhou: {str(e)[:60]}")
 
+            # Deduplicação global (remove duplicados entre fontes)
+            seen_global = set()
+            unique_deals = []
+            for d in deals_found:
+                if d['id'] not in seen_global:
+                    seen_global.add(d['id'])
+                    unique_deals.append(d)
+            deals_found = unique_deals
+
             # Resultado final
             if deals_found:
-                Actor.log.info(f"🏆 IA APROVOU {len(deals_found)} furgões com os teus parâmetros!")
+                Actor.log.info(f"🏆 IA APROVOU {len(deals_found)} furgões ÚNICOS com os teus parâmetros!")
                 await Actor.push_data(deals_found)
             else:
                 Actor.log.info("⚠️ Nenhum furgão aprovado com estes filtros exatos.")
