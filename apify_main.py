@@ -85,11 +85,11 @@ def calculate_score(price, km, year, source="marketplace"):
 # ==================================================================
 # FONTE 1 — AutoScout24.de (Transporter / Van / Kastenwagen)
 # ==================================================================
-async def search_autoscout(page):
-    Actor.log.info("🔎 FONTE 1: AutoScout24 — Transporter / Van / Kastenwagen...")
+async def search_autoscout(page, cfg):
+    Actor.log.info(f"🔎 FONTE 1: AutoScout24 — Max {cfg['max_price']}€ | Min {cfg['min_year']} | Max {cfg['max_km']}km...")
     urls = [
-        "https://www.autoscout24.de/lst?atype=C&body=7&cy=D&fregfrom=2020&kmto=150000&priceto=15000&sort=price&desc=0",
-        "https://www.autoscout24.de/lst?atype=C&body=12&cy=D&fregfrom=2020&kmto=150000&priceto=15000&sort=price&desc=0",
+        f"https://www.autoscout24.de/lst?atype=C&body=7&cy=D&fregfrom={cfg['min_year']}&kmto={cfg['max_km']}&priceto={cfg['max_price']}&sort=price&desc=0",
+        f"https://www.autoscout24.de/lst?atype=C&body=12&cy=D&fregfrom={cfg['min_year']}&kmto={cfg['max_km']}&priceto={cfg['max_price']}&sort=price&desc=0",
     ]
     all_deals = []
     for url in urls:
@@ -104,15 +104,10 @@ async def search_autoscout(page):
                     if not title_elem: continue
                     title = title_elem.text.strip()
                     low = title.lower()
-                    # Filtro de relevância: só carrinhas comerciais
-                    van_keywords = ['transit', 'sprinter', 'transporter', 'vito', 'crafter',
-                                    'ducato', 'boxer', 'jumper', 'daily', 'master', 'movano',
-                                    'caddy', 'berlingo', 'partner', 'kangoo', 'combo', 'citan',
-                                    'proace', 'expert', 'jumpy', 'vivaro', 'trafic', 'van',
-                                    'kastenwagen', 'kasten', 'l1h1', 'l2h2', 'l3h2', 'l2h1',
-                                    'furgon', 'panel', 'lieferwagen', 'nutzfahrzeug']
-                    if not any(kw in low for kw in van_keywords):
+                    
+                    if cfg['keywords'] and not any(kw in low for kw in cfg['keywords']):
                         continue
+                        
                     article_text = article.text.strip()
                     price_str = ""
                     price_container = article.find(attrs={"data-testid": "regular-price"})
@@ -121,7 +116,9 @@ async def search_autoscout(page):
                     if '€' in price_str:
                         num_str = ''.join(filter(str.isdigit, price_str))
                         if num_str: price = int(num_str)
-                    if price <= 0 or price > 15000: continue
+                    
+                    if price <= 0 or price > cfg['max_price']: continue
+                    
                     details = article.find_all(attrs={"data-testid": "item-details-list"})
                     km = 0; year = 2020
                     if details:
@@ -131,7 +128,9 @@ async def search_autoscout(page):
                             if num_km: km = int(num_km)
                             num_yr = ''.join(filter(str.isdigit, items[1].text.split('/')[-1]))
                             if num_yr and len(num_yr) == 4: year = int(num_yr)
-                    if year < 2020 or km > 150000: continue
+                    
+                    if year < cfg['min_year'] or km > cfg['max_km']: continue
+                    
                     link = ""
                     a_tag = article.find('a')
                     if a_tag and a_tag.get('href'): link = "https://www.autoscout24.de" + a_tag['href']
@@ -155,18 +154,17 @@ async def search_autoscout(page):
 # ==================================================================
 # FONTE 2 — mobile.de (O maior marketplace da Alemanha)
 # ==================================================================
-async def search_mobile_de(page):
-    Actor.log.info("🔎 FONTE 2: mobile.de — Transporter / Kastenwagen...")
+async def search_mobile_de(page, cfg):
+    Actor.log.info(f"🔎 FONTE 2: mobile.de — Max {cfg['max_price']}€ | Min {cfg['min_year']} | Max {cfg['max_km']}km...")
     urls = [
-        "https://suchen.mobile.de/fahrzeuge/search.html?dam=0&isSearchRequest=true&ms=&od=down&ref=quickSearch&s=Car&sb=p&vc=Van&fr=2020%3A&ml=%3A150000&p=%3A15000",
-        "https://suchen.mobile.de/fahrzeuge/search.html?dam=0&isSearchRequest=true&ms=&od=down&ref=quickSearch&s=Car&sb=p&vc=TransporterVan&fr=2020%3A&ml=%3A150000&p=%3A15000",
+        f"https://suchen.mobile.de/fahrzeuge/search.html?dam=0&isSearchRequest=true&ms=&od=down&ref=quickSearch&s=Car&sb=p&vc=Van&fr={cfg['min_year']}%3A&ml=%3A{cfg['max_km']}&p=%3A{cfg['max_price']}",
+        f"https://suchen.mobile.de/fahrzeuge/search.html?dam=0&isSearchRequest=true&ms=&od=down&ref=quickSearch&s=Car&sb=p&vc=TransporterVan&fr={cfg['min_year']}%3A&ml=%3A{cfg['max_km']}&p=%3A{cfg['max_price']}",
     ]
     all_deals = []
     for url in urls:
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=20000)
             await asyncio.sleep(5)
-            # Aceitar cookies se necessário
             try:
                 consent = await page.query_selector('button[data-testid="gdpr-consent-accept-btn"], .mde-consent-accept-btn, #gdpr-consent-accept-btn')
                 if consent: await consent.click()
@@ -181,20 +179,19 @@ async def search_mobile_de(page):
                     title_elem = item.find(['h2', 'h3', 'span'], class_=lambda x: x and ('title' in str(x).lower() or 'headline' in str(x).lower()))
                     title = title_elem.text.strip() if title_elem else text[:60]
                     low = title.lower()
-                    van_keywords = ['transit', 'sprinter', 'transporter', 'vito', 'crafter',
-                                    'ducato', 'boxer', 'jumper', 'daily', 'master', 'movano',
-                                    'caddy', 'berlingo', 'partner', 'kangoo', 'combo', 'citan',
-                                    'kastenwagen', 'kasten', 'van', 'furgon', 'lieferwagen']
-                    if not any(kw in low for kw in van_keywords):
+                    
+                    if cfg['keywords'] and not any(kw in low for kw in cfg['keywords']):
                         continue
+                        
                     price = 0
                     price_elem = item.find(['span', 'div', 'p'], class_=lambda x: x and ('price' in str(x).lower()))
                     if price_elem:
                         num_str = ''.join(filter(str.isdigit, price_elem.text))
                         if num_str: price = int(num_str)
-                    if price <= 500 or price > 15000: continue
+                    
+                    if price <= 500 or price > cfg['max_price']: continue
+                    
                     km = 80000; year = 2021
-                    # Tentar extrair km e ano do texto
                     import re
                     km_match = re.search(r'(\d{1,3}[\.\s]?\d{3})\s*km', text)
                     if km_match:
@@ -202,7 +199,9 @@ async def search_mobile_de(page):
                         if 1000 < km_val < 300000: km = km_val
                     year_match = re.search(r'(202[0-6])', text)
                     if year_match: year = int(year_match.group(1))
-                    if year < 2020 or km > 150000: continue
+                    
+                    if year < cfg['min_year'] or km > cfg['max_km']: continue
+                    
                     link = ""
                     a_tag = item.find('a', href=True)
                     if a_tag:
@@ -229,11 +228,11 @@ async def search_mobile_de(page):
 # ==================================================================
 # FONTE 3 — Kleinanzeigen.de (Privados / Oportunidades)
 # ==================================================================
-async def search_kleinanzeigen(page):
-    Actor.log.info("🔎 FONTE 3: Kleinanzeigen.de — Kastenwagen Privados...")
+async def search_kleinanzeigen(page, cfg):
+    Actor.log.info(f"🔎 FONTE 3: Kleinanzeigen.de — Max {cfg['max_price']}€...")
     urls = [
-        "https://www.kleinanzeigen.de/s-autos/kastenwagen/anzeige:angebote/preis::15000/c216+autos.ez_i:2020,",
-        "https://www.kleinanzeigen.de/s-transporter/anzeige:angebote/preis::15000/c276+autos.ez_i:2020,",
+        f"https://www.kleinanzeigen.de/s-autos/kastenwagen/anzeige:angebote/preis::{cfg['max_price']}/c216+autos.ez_i:{cfg['min_year']},",
+        f"https://www.kleinanzeigen.de/s-transporter/anzeige:angebote/preis::{cfg['max_price']}/c276+autos.ez_i:{cfg['min_year']},",
     ]
     all_deals = []
     for url in urls:
@@ -248,6 +247,10 @@ async def search_kleinanzeigen(page):
                     if not title_elem: continue
                     title = title_elem.text.strip()
                     article_text = article.text.strip()
+                    
+                    if cfg['keywords'] and not any(kw in title.lower() for kw in cfg['keywords']):
+                        continue
+                        
                     price_str = ""
                     p_elem = article.find('p', class_='aditem-main--middle--price-shipping--price')
                     if p_elem: price_str = p_elem.text
@@ -255,7 +258,9 @@ async def search_kleinanzeigen(page):
                     if '€' in price_str:
                         num_str = ''.join(filter(str.isdigit, price_str))
                         if num_str: price = int(num_str)
-                    if price <= 0 or price > 15000: continue
+                    
+                    if price <= 0 or price > cfg['max_price']: continue
+                    
                     km = 100000; year = 2021
                     uid = "klein_" + str(price) + "_" + title[:10].replace(' ','')
                     link = ""
@@ -280,11 +285,11 @@ async def search_kleinanzeigen(page):
 # ==================================================================
 # FONTE 4 — Auto1 B2B (Wholesale)
 # ==================================================================
-async def search_auto1_b2b(page):
+async def search_auto1_b2b(page, cfg):
     email = os.environ.get('AUTO1_EMAIL')
     password = os.environ.get('AUTO1_PASSWORD')
     if not email or not password: return []
-    Actor.log.info("🔐 FONTE 4: Auto1 B2B — Login e Transporter Wholesale...")
+    Actor.log.info(f"🔐 FONTE 4: Auto1 B2B — Max {cfg['max_price']}€...")
     new_deals = []
     try:
         await page.goto("https://www.auto1.com/en/login", wait_until="domcontentloaded", timeout=20000)
@@ -297,7 +302,8 @@ async def search_auto1_b2b(page):
         if login_btn:
             await login_btn.click()
             await asyncio.sleep(6)
-        search_url = "https://www.auto1.com/en/market?bodyType=transporter&fuel=diesel&registrationYearFrom=2020&mileageTo=150000"
+        
+        search_url = f"https://www.auto1.com/en/market?bodyType=transporter&fuel=diesel&registrationYearFrom={cfg['min_year']}&mileageTo={cfg['max_km']}"
         await page.goto(search_url, wait_until="networkidle", timeout=30000)
         await asyncio.sleep(5)
         soup = BeautifulSoup(await page.content(), 'html.parser')
@@ -307,7 +313,13 @@ async def search_auto1_b2b(page):
                 text_content = row.text.strip()
                 if not text_content or len(text_content) < 30 or '202' not in text_content: continue
                 title = "Furgão Auto1 " + text_content[:40].replace('\n', ' ') + "..."
+                
+                if cfg['keywords'] and not any(kw in title.lower() for kw in cfg['keywords']):
+                    continue
+                    
                 price = 6500; km = 90000; year = 2021
+                if price > cfg['max_price']: continue
+                
                 score = calculate_score(price, km, year, "b2b_wholesale")
                 is_good, ai_verdict = ask_gemini_expert(title, price, km, year, text_content)
                 if not is_good: continue
@@ -325,11 +337,11 @@ async def search_auto1_b2b(page):
 # ==================================================================
 # FONTE 5 — OpenLane B2B (Ex-ADESA)
 # ==================================================================
-async def search_openlane_b2b(page):
+async def search_openlane_b2b(page, cfg):
     user = os.environ.get('OPENLANE_USER')
     password = os.environ.get('OPENLANE_PASSWORD')
     if not user or not password: return []
-    Actor.log.info("🔐 FONTE 5: OpenLane B2B — Transporter Leilão...")
+    Actor.log.info(f"🔐 FONTE 5: OpenLane B2B — Max {cfg['max_price']}€...")
     new_deals = []
     try:
         await page.goto("https://www.openlane.eu/en/login", wait_until="domcontentloaded", timeout=20000)
@@ -342,7 +354,8 @@ async def search_openlane_b2b(page):
         if btn:
             await btn.click()
             await asyncio.sleep(6)
-        search_url = "https://www.openlane.eu/en/findcar?bodyType=transporter&registrationYearFrom=2020"
+        
+        search_url = f"https://www.openlane.eu/en/findcar?bodyType=transporter&registrationYearFrom={cfg['min_year']}"
         await page.goto(search_url, wait_until="networkidle", timeout=30000)
         await asyncio.sleep(5)
         soup = BeautifulSoup(await page.content(), 'html.parser')
@@ -352,7 +365,13 @@ async def search_openlane_b2b(page):
                 text_content = row.text.strip()
                 if not text_content or len(text_content) < 20 or '202' not in text_content: continue
                 title = "Furgão OpenLane " + text_content[:40].replace('\n', ' ') + "..."
+                
+                if cfg['keywords'] and not any(kw in title.lower() for kw in cfg['keywords']):
+                    continue
+                    
                 price = 5900; km = 80000; year = 2021
+                if price > cfg['max_price']: continue
+                
                 score = calculate_score(price, km, year, "b2b_wholesale")
                 is_good, ai_verdict = ask_gemini_expert(title, price, km, year, text_content)
                 if not is_good: continue
@@ -372,8 +391,21 @@ async def search_openlane_b2b(page):
 # ==================================================================
 async def main():
     async with Actor:
-        Actor.log.info("🚀 DarkDeals DE v3.0 — Motor Multi-Fonte com IA Gemini")
-        Actor.log.info("   Fontes: AutoScout24 | mobile.de | Kleinanzeigen | Auto1 | OpenLane")
+        # Puxar DADOS DINÂMICOS do Apify (Configurados na consola pelo utilizador)
+        input_data = await Actor.get_input() or {}
+        
+        kw_str = input_data.get("keywords", "transit, sprinter, transporter, vito, crafter, ducato, boxer, jumper, daily, master, movano, caddy, berlingo, partner, kangoo, combo, citan, kastenwagen")
+        cfg = {
+            "max_price": int(input_data.get("maxPrice", 15000)),
+            "min_year": int(input_data.get("minYear", 2020)),
+            "max_km": int(input_data.get("maxKm", 150000)),
+            "keywords": [k.strip().lower() for k in kw_str.split(',')] if kw_str.strip() else []
+        }
+        
+        Actor.log.info("🚀 DarkDeals DE v4.0 — Motor Dinâmico com IA Gemini")
+        Actor.log.info(f"⚙️ Configuração Ativa: PREÇO MÁX: {cfg['max_price']}€ | ANO MIN: {cfg['min_year']} | KM MAX: {cfg['max_km']}")
+        Actor.log.info(f"📋 Keywords: {', '.join(cfg['keywords'])[:60]}...")
+        
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
@@ -384,44 +416,44 @@ async def main():
 
             # FONTE 1: AutoScout24
             try:
-                deals_found.extend(await search_autoscout(page))
+                deals_found.extend(await search_autoscout(page, cfg))
             except Exception as e:
                 Actor.log.warning(f"AutoScout24 falhou: {str(e)[:60]}")
 
             # FONTE 2: mobile.de
             try:
-                deals_found.extend(await search_mobile_de(page))
+                deals_found.extend(await search_mobile_de(page, cfg))
             except Exception as e:
                 Actor.log.warning(f"mobile.de falhou: {str(e)[:60]}")
 
             # FONTE 3: Kleinanzeigen
             try:
-                deals_found.extend(await search_kleinanzeigen(page))
+                deals_found.extend(await search_kleinanzeigen(page, cfg))
             except Exception as e:
                 Actor.log.warning(f"Kleinanzeigen falhou: {str(e)[:60]}")
 
             # FONTE 4: Auto1 B2B
             try:
-                auto1 = await search_auto1_b2b(page)
+                auto1 = await search_auto1_b2b(page, cfg)
                 if auto1: deals_found.extend(auto1)
             except Exception as e:
                 Actor.log.warning(f"Auto1 falhou: {str(e)[:60]}")
 
             # FONTE 5: OpenLane B2B
             try:
-                ol = await search_openlane_b2b(page)
+                ol = await search_openlane_b2b(page, cfg)
                 if ol: deals_found.extend(ol)
             except Exception as e:
                 Actor.log.warning(f"OpenLane falhou: {str(e)[:60]}")
 
             # Resultado final
             if deals_found:
-                Actor.log.info(f"🏆 IA APROVOU {len(deals_found)} furgões comerciais de {5} fontes!")
+                Actor.log.info(f"🏆 IA APROVOU {len(deals_found)} furgões com os teus parâmetros!")
                 await Actor.push_data(deals_found)
             else:
-                Actor.log.info("⚠️ Nenhum furgão aprovado neste ciclo. A IA foi muito restritiva ou os sites bloquearam.")
+                Actor.log.info("⚠️ Nenhum furgão aprovado com estes filtros exatos.")
             await browser.close()
-            Actor.log.info("✅ DarkDeals DE v3.0 — Ciclo Multi-Fonte Concluído.")
+            Actor.log.info("✅ DarkDeals DE v4.0 — Ciclo Concluído.")
 
 if __name__ == "__main__":
     asyncio.run(main())

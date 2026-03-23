@@ -1,0 +1,39 @@
+{
+    "title": "Configuração do DarkDeals DE 🇩🇪→🇵🇹",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "keywords": {
+            "title": "Modelos/Keywords (Separados por vírgula)",
+            "type": "string",
+            "description": "Exemplo: transit, sprinter, transporter, vito. Vazio procura por qualquer furgão (carrinha) comercial.",
+            "default": "transit, sprinter, transporter, vito, crafter, ducato, boxer, jumper, daily, master, movano, caddy, berlingo, partner, kangoo, combo, citan, kastenwagen",
+            "editor": "textfield"
+        },
+        "maxPrice": {
+            "title": "Preço Máximo na Alemanha (€)",
+            "type": "integer",
+            "description": "Preço base limite (ex: 15000)",
+            "default": 15000,
+            "minimum": 1000,
+            "maximum": 50000
+        },
+        "minYear": {
+            "title": "Ano Mínimo de Registo",
+            "type": "integer",
+            "description": "Ano a partir do qual procurar (ex: 2020)",
+            "default": 2020,
+            "minimum": 2000,
+            "maximum": 2026
+        },
+        "maxKm": {
+            "title": "Quilometragem Máxima",
+            "type": "integer",
+            "description": "Limite de km no quadrante",
+            "default": 150000,
+            "minimum": 10000,
+            "maximum": 500000
+        }
+    },
+    "required": ["maxPrice", "minYear", "maxKm"]
+}
