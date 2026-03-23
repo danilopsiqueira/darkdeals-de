@@ -207,6 +207,7 @@ async def search_mobile_de(page, cfg):
     else:
         urls = base_urls
     all_deals = []
+    seen_ids = set()
     for url in urls:
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -254,7 +255,9 @@ async def search_mobile_de(page, cfg):
                         href = a_tag['href']
                         if href.startswith('/'): link = "https://suchen.mobile.de" + href
                         elif href.startswith('http'): link = href
-                    uid = "mob_" + str(price) + "_" + str(km) + "_" + str(year)
+                    uid = "mob_" + str(price) + "_" + str(km) + "_" + title[:20].replace(' ','')
+                    if uid in seen_ids: continue
+                    seen_ids.add(uid)
                     score = calculate_score(price, km, year, "marketplace")
                     if score >= 35:
                         is_good, ai_verdict = ask_gemini_expert(title, price, km, year, text)
@@ -285,6 +288,7 @@ async def search_kleinanzeigen(page, cfg):
         urls.append(f"https://www.kleinanzeigen.de/s-autos/kastenwagen/anzeige:angebote/preis::{cfg['max_price']}/c216+autos.ez_i:{cfg['min_year']},")
         urls.append(f"https://www.kleinanzeigen.de/s-transporter/anzeige:angebote/preis::{cfg['max_price']}/c276+autos.ez_i:{cfg['min_year']},")
     all_deals = []
+    seen_ids = set()
     for url in urls:
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
@@ -312,7 +316,9 @@ async def search_kleinanzeigen(page, cfg):
                     if price <= 0 or price > cfg['max_price']: continue
                     
                     km = 100000; year = 2021
-                    uid = "klein_" + str(price) + "_" + title[:10].replace(' ','')
+                    uid = "klein_" + str(price) + "_" + title[:30].replace(' ','_')
+                    if uid in seen_ids: continue
+                    seen_ids.add(uid)
                     link = ""
                     for a in article.find_all('a', href=True):
                         if '/s-anzeige/' in a['href']:
