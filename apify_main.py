@@ -446,6 +446,145 @@ async def search_openlane_b2b(page, cfg):
     except Exception: return []
 
 # ==================================================================
+# FONTE 6 — TruckScout24.de (Líder europeu veículos comerciais)
+# ==================================================================
+async def search_truckscout24(page, cfg):
+    Actor.log.info(f"🔎 FONTE 6: TruckScout24 — Max {cfg['max_price']}€...")
+    # category: 309=Kastenwagen, 310=Transporter
+    urls = [
+        f"https://www.truckscout24.de/main/search/index?category-ids=309&price-to={cfg['max_price']}&registration-from={cfg['min_year']}&mileage-to={cfg['max_km']}",
+        f"https://www.truckscout24.de/main/search/index?category-ids=310&price-to={cfg['max_price']}&registration-from={cfg['min_year']}&mileage-to={cfg['max_km']}",
+    ]
+    all_deals = []
+    seen_ids = set()
+    for url in urls:
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            await asyncio.sleep(5)
+            soup = BeautifulSoup(await page.content(), 'html.parser')
+            items = soup.find_all(['div', 'article', 'li'], class_=lambda x: x and ('listing' in str(x).lower() or 'result' in str(x).lower() or 'item' in str(x).lower()))
+            for item in items:
+                try:
+                    text = item.text.strip()
+                    if len(text) < 30: continue
+                    title_elem = item.find(['h2', 'h3', 'a'], class_=lambda x: x and ('title' in str(x).lower() or 'name' in str(x).lower()))
+                    title = title_elem.text.strip() if title_elem else text[:60]
+                    low = title.lower()
+                    if cfg['keywords'] and not any(kw in low for kw in cfg['keywords']):
+                        continue
+                    
+                    import re
+                    price = 0
+                    price_match = re.search(r'([\d\.]+)\s*€', text.replace(',', '.'))
+                    if price_match:
+                        price = int(float(price_match.group(1).replace('.', '')))
+                    if price <= 0 or price > cfg['max_price']: continue
+                    
+                    km = 80000; year = 2021
+                    km_match = re.search(r'(\d{1,3}[\.\s]?\d{3})\s*km', text)
+                    if km_match:
+                        km_val = int(km_match.group(1).replace('.', '').replace(' ', ''))
+                        if 1000 < km_val < 300000: km = km_val
+                    year_match = re.search(r'(202[0-6])', text)
+                    if year_match: year = int(year_match.group(1))
+                    if year < cfg['min_year'] or km > cfg['max_km']: continue
+                    
+                    link = ""
+                    a_tag = item.find('a', href=True)
+                    if a_tag:
+                        href = a_tag['href']
+                        if href.startswith('/'): link = "https://www.truckscout24.de" + href
+                        elif href.startswith('http'): link = href
+                    
+                    uid = "ts24_" + str(price) + "_" + title[:25].replace(' ', '_')
+                    if uid in seen_ids: continue
+                    seen_ids.add(uid)
+                    score = calculate_score(price, km, year, "marketplace")
+                    if score >= 35:
+                        is_good, ai_verdict = ask_gemini_expert(title, price, km, year, text)
+                        if not is_good: continue
+                        all_deals.append({
+                            "id": uid, "vehicle": title, "price": price, "km": km, "year": year,
+                            "fuel": "diesel", "source": "marketplace", "link": link,
+                            "notes": f"🚚 TruckScout24 | 🤖 IA: {ai_verdict}",
+                            "score": score, "addedAt": datetime.now().isoformat()
+                        })
+                except Exception: pass
+        except Exception as e:
+            Actor.log.warning(f"TruckScout24 URL falhou: {str(e)[:60]}")
+    Actor.log.info(f"TruckScout24: {len(all_deals)} furgões aprovados pela IA")
+    return all_deals
+
+# ==================================================================
+# FONTE 7 — automobile.de (Grupo mobile.de / eBay Motors)
+# ==================================================================
+async def search_automobile_de(page, cfg):
+    Actor.log.info(f"🔎 FONTE 7: automobile.de — Max {cfg['max_price']}€...")
+    urls = [
+        f"https://www.automobile.de/suchen?body=Transporter&priceUntil={cfg['max_price']}&firstRegistrationFrom={cfg['min_year']}&mileageUntil={cfg['max_km']}&sort=PRICE_ASC",
+        f"https://www.automobile.de/suchen?body=Van&priceUntil={cfg['max_price']}&firstRegistrationFrom={cfg['min_year']}&mileageUntil={cfg['max_km']}&sort=PRICE_ASC",
+    ]
+    all_deals = []
+    seen_ids = set()
+    for url in urls:
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            await asyncio.sleep(5)
+            soup = BeautifulSoup(await page.content(), 'html.parser')
+            items = soup.find_all(['div', 'article', 'a'], class_=lambda x: x and ('listing' in str(x).lower() or 'result' in str(x).lower() or 'card' in str(x).lower()))
+            for item in items:
+                try:
+                    text = item.text.strip()
+                    if len(text) < 30: continue
+                    title_elem = item.find(['h2', 'h3', 'span'], class_=lambda x: x and ('title' in str(x).lower() or 'name' in str(x).lower()))
+                    title = title_elem.text.strip() if title_elem else text[:60]
+                    low = title.lower()
+                    if cfg['keywords'] and not any(kw in low for kw in cfg['keywords']):
+                        continue
+                    
+                    import re
+                    price = 0
+                    price_match = re.search(r'([\d\.]+)\s*€', text.replace(',', '.'))
+                    if price_match:
+                        price = int(float(price_match.group(1).replace('.', '')))
+                    if price <= 0 or price > cfg['max_price']: continue
+                    
+                    km = 80000; year = 2021
+                    km_match = re.search(r'(\d{1,3}[\.\s]?\d{3})\s*km', text)
+                    if km_match:
+                        km_val = int(km_match.group(1).replace('.', '').replace(' ', ''))
+                        if 1000 < km_val < 300000: km = km_val
+                    year_match = re.search(r'(202[0-6])', text)
+                    if year_match: year = int(year_match.group(1))
+                    if year < cfg['min_year'] or km > cfg['max_km']: continue
+                    
+                    link = ""
+                    a_tag = item.find('a', href=True)
+                    if a_tag:
+                        href = a_tag['href']
+                        if href.startswith('/'): link = "https://www.automobile.de" + href
+                        elif href.startswith('http'): link = href
+                    
+                    uid = "autode_" + str(price) + "_" + title[:25].replace(' ', '_')
+                    if uid in seen_ids: continue
+                    seen_ids.add(uid)
+                    score = calculate_score(price, km, year, "marketplace")
+                    if score >= 35:
+                        is_good, ai_verdict = ask_gemini_expert(title, price, km, year, text)
+                        if not is_good: continue
+                        all_deals.append({
+                            "id": uid, "vehicle": title, "price": price, "km": km, "year": year,
+                            "fuel": "diesel", "source": "marketplace", "link": link,
+                            "notes": f"🏷️ automobile.de | 🤖 IA: {ai_verdict}",
+                            "score": score, "addedAt": datetime.now().isoformat()
+                        })
+                except Exception: pass
+        except Exception as e:
+            Actor.log.warning(f"automobile.de URL falhou: {str(e)[:60]}")
+    Actor.log.info(f"automobile.de: {len(all_deals)} furgões aprovados pela IA")
+    return all_deals
+
+# ==================================================================
 # MAIN — Orquestrador Multi-Fonte
 # ==================================================================
 async def main():
@@ -520,6 +659,20 @@ async def main():
                 if ol: await push_unique(ol, "OpenLane B2B")
             except Exception as e:
                 Actor.log.warning(f"OpenLane falhou: {str(e)[:60]}")
+
+            # FONTE 6: TruckScout24
+            try:
+                results = await search_truckscout24(page, cfg)
+                await push_unique(results, "TruckScout24")
+            except Exception as e:
+                Actor.log.warning(f"TruckScout24 falhou: {str(e)[:60]}")
+
+            # FONTE 7: automobile.de
+            try:
+                results = await search_automobile_de(page, cfg)
+                await push_unique(results, "automobile.de")
+            except Exception as e:
+                Actor.log.warning(f"automobile.de falhou: {str(e)[:60]}")
 
             Actor.log.info(f"🏆 IA APROVOU {total_pushed} furgões ÚNICOS com os teus parâmetros!")
             await browser.close()
