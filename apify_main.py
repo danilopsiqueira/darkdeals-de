@@ -141,6 +141,8 @@ async def search_autoscout(page, cfg):
                         if '/angebote/' in a['href']:
                             link = "https://www.autoscout24.de" + a['href']
                             break
+                    if not link and article.get('id'):
+                        link = "https://www.autoscout24.de/angebote/-" + article['id']
                     uid = "as24_" + str(price) + "_" + str(km) + "_" + str(year)
                     score = calculate_score(price, km, year, "marketplace")
                     if score >= 35:
