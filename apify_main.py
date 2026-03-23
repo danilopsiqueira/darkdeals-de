@@ -613,6 +613,9 @@ async def main():
             total_pushed = 0
             seen_global = set()
 
+            # Dataset nomeado — persiste entre runs, mesmo com timeout
+            named_dataset = await Actor.open_dataset(name='darkdeals-results', force_cloud=True)
+
             async def push_unique(deals, source_name):
                 nonlocal total_pushed
                 unique = []
@@ -621,7 +624,8 @@ async def main():
                         seen_global.add(d['id'])
                         unique.append(d)
                 if unique:
-                    await Actor.push_data(unique)
+                    await named_dataset.push_data(unique)
+                    await Actor.push_data(unique)  # também para o default dataset
                     total_pushed += len(unique)
                     Actor.log.info(f"📤 {source_name}: {len(unique)} novos enviados (Total: {total_pushed})")
 
