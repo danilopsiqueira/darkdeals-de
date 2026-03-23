@@ -14,7 +14,6 @@ const APIFY_URL = `https://api.apify.com/v2/acts/fRCmGC2SFtITA3Jmf/runs/last/dat
 document.addEventListener('DOMContentLoaded', () => {
     setupListeners();
     fetchDeals();
-    setInterval(fetchDeals, 30000); // Auto-refresh 30s
 });
 
 function setupListeners() {
