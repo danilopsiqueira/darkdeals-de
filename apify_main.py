@@ -137,8 +137,10 @@ async def search_autoscout(page, cfg):
                     if year < cfg['min_year'] or km > cfg['max_km']: continue
                     
                     link = ""
-                    a_tag = article.find('a', href=True)
-                    if a_tag: link = "https://www.autoscout24.de" + a_tag['href']
+                    for a in article.find_all('a', href=True):
+                        if '/angebote/' in a['href']:
+                            link = "https://www.autoscout24.de" + a['href']
+                            break
                     uid = "as24_" + str(price) + "_" + str(km) + "_" + str(year)
                     score = calculate_score(price, km, year, "marketplace")
                     if score >= 35:
@@ -269,8 +271,10 @@ async def search_kleinanzeigen(page, cfg):
                     km = 100000; year = 2021
                     uid = "klein_" + str(price) + "_" + title[:10].replace(' ','')
                     link = ""
-                    a_tag = article.find('a', href=True)
-                    if a_tag: link = "https://www.kleinanzeigen.de" + a_tag['href']
+                    for a in article.find_all('a', href=True):
+                        if '/s-anzeige/' in a['href']:
+                            link = "https://www.kleinanzeigen.de" + a['href']
+                            break
                     score = calculate_score(price, km, year, "private")
                     if score >= 35:
                         is_good, ai_verdict = ask_gemini_expert(title, price, km, year, article_text)
