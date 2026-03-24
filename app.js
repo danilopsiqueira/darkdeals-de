@@ -8,7 +8,7 @@ let lastFetchTime = null;
 
 // ---- Apify Cloud Connection ----
 const APIFY_TOKEN = atob("YXBpZnlfYXBpX2o3OXZzWWlwMU4zVnlUUWVKTkY2Mm1FdWlzckNPNjFtamNGMg==");
-const APIFY_URL = `https://api.apify.com/v2/datasets/darkdeals-results/items?token=${APIFY_TOKEN}&clean=true`;
+const APIFY_URL = `https://api.apify.com/v2/acts/fRCmGC2SFtITA3Jmf/runs/last/dataset/items?token=${APIFY_TOKEN}&status=SUCCEEDED`;
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
